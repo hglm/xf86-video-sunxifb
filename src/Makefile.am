@@ -39,7 +39,11 @@ sunxifb_drv_la_SOURCES = \
          sunxi_x_g2d.h \
          sunxi_disp_hwcursor.c \
          sunxi_disp_hwcursor.h \
-         arm_asm.S
+         arm_asm.S \
+         arm_cpuid.c \
+         arm_cpuid.h \
+         cpu_backend.c \
+         cpu_backend.h
 
 if HAVE_LIBUMP
 sunxifb_drv_la_SOURCES += \
