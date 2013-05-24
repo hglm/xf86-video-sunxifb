@@ -427,6 +427,115 @@ int sunxi_g2d_fill_a8r8g8b8(sunxi_disp_t *disp,
     return ioctl(disp->fd_g2d, G2D_CMD_FILLRECT, &tmp);
 }
 
+/*
+ * 16-bit fill is slower than software fill, but for completeness it is
+ * implemented here. It does help CPU utilization.
+ * color is a 16-bit R5G6B5 value.
+ */
+
+int sunxi_g2d_fill_r5g6b5(sunxi_disp_t *disp,
+                            int           x,
+                            int           y,
+                            int           w,
+                            int           h,
+                            uint32_t      color)
+{
+    g2d_fillrect tmp;
+
+    if (disp->fd_g2d < 0)
+        return -1;
+
+    if (w <= 0 || h <= 0)
+        return 0;
+
+    tmp.flag                = G2D_FIL_NONE;
+    tmp.dst_image.addr[0]   = disp->framebuffer_paddr;
+    tmp.dst_image.w         = disp->xres;
+    tmp.dst_image.h         = disp->framebuffer_height;
+    tmp.dst_image.format    = G2D_FMT_RGB565;
+    tmp.dst_image.pixel_seq = G2D_SEQ_P10;
+    tmp.dst_rect.x          = x;
+    tmp.dst_rect.y          = y;
+
+    tmp.dst_rect.w          = w;
+    tmp.dst_rect.h          = h;
+    /* We have to convert the color to RGB888 format. */
+    tmp.color               = ((color & 0x001F) << 3) | ((color & 0x07E0) << 5) |
+                              ((color & 0xF800) << 8);
+    tmp.alpha               = 0;
+
+    return ioctl(disp->fd_g2d, G2D_CMD_FILLRECT, &tmp);
+}
+
+/*
+ * This version of 16-bit fill splits the area into a maximum three parts
+ * horizontally. The aligned, middle part is drawn using a 32-bit fill.
+ * The left and right edges, if required, are drawn with 16-bit fill.
+ */
+
+int sunxi_g2d_fill_r5g6b5_in_three(sunxi_disp_t *disp,
+                            int           x,
+                            int           y,
+                            int           w,
+                            int           h,
+                            uint32_t      color)
+{
+    g2d_fillrect tmp;
+    uint32_t color_rgb888;
+
+    if (disp->fd_g2d < 0)
+        return -1;
+
+    if (w <= 0 || h <= 0)
+        return 0;
+
+    /* Set up invariant fill parameters. */
+    tmp.flag                = G2D_FIL_NONE;
+    tmp.dst_image.addr[0]   = disp->framebuffer_paddr;
+    tmp.dst_rect.y          = y;
+    tmp.dst_image.h         = disp->framebuffer_height;
+    tmp.dst_rect.h          = h;
+    tmp.alpha               = 0;
+
+    color_rgb888 = ((color & 0x001F) << 3) | ((color & 0x07E0) << 5) |
+                   ((color & 0xF800) << 8);
+    if (x & 1) {
+        tmp.dst_image.w         = disp->xres;
+        tmp.dst_image.format    = G2D_FMT_RGB565;
+        tmp.dst_image.pixel_seq = G2D_SEQ_P10;
+        tmp.dst_rect.x          = x;
+        tmp.dst_rect.w          = 1;
+        tmp.color               = color_rgb888;
+        if (ioctl(disp->fd_g2d, G2D_CMD_FILLRECT, &tmp))
+            return - 1;
+        x++;
+        w--;
+    }
+    if (w >= 2) {
+        tmp.dst_image.w         = disp->xres >> 1;
+        tmp.dst_image.format    = G2D_FMT_ARGB_AYUV8888;
+        tmp.dst_image.pixel_seq = G2D_SEQ_NORMAL;
+        tmp.dst_rect.x          = x >> 1;
+        tmp.dst_rect.w          = w >> 1;
+        tmp.color               = color | (color << 16);
+        if (ioctl(disp->fd_g2d, G2D_CMD_FILLRECT, &tmp))
+            return - 1;
+        x += (w >> 1) * 2;
+        w &= 1;
+    }
+    if (w) {
+        tmp.dst_image.w         = disp->xres;
+        tmp.dst_image.format    = G2D_FMT_RGB565;
+        tmp.dst_image.pixel_seq = G2D_SEQ_P10;
+        tmp.dst_rect.x          = x;
+        tmp.dst_rect.w          = 1;
+        tmp.color               = color_rgb888;
+        if (ioctl(disp->fd_g2d, G2D_CMD_FILLRECT, &tmp))
+            return - 1;
+    }
+    return 0;
+}
+
 int sunxi_g2d_blit_a8r8g8b8(sunxi_disp_t *disp,
                             int           dst_x,
                             int           dst_y,

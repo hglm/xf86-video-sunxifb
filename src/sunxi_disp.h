@@ -110,6 +110,20 @@ int sunxi_g2d_fill_a8r8g8b8(sunxi_disp_t *disp,
                             int           h,
                             uint32_t      color);
 
+int sunxi_g2d_fill_r5g6b5(sunxi_disp_t *disp,
+                            int           x,
+                            int           y,
+                            int           w,
+                            int           h,
+                            uint32_t      color);
+
+int sunxi_g2d_fill_r5g6b5_in_three(sunxi_disp_t *disp,
+                            int           x,
+                            int           y,
+                            int           w,
+                            int           h,
+                            uint32_t      color);
+
 int sunxi_g2d_blit_a8r8g8b8(sunxi_disp_t *disp,
                             int           dst_x,
                             int           dst_y,
