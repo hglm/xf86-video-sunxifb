@@ -147,6 +147,7 @@ sunxi_disp_t *sunxi_disp_init(const char *device, void *xserver_fbmem)
 
     ctx->blt2d.self = ctx;
     ctx->blt2d.overlapped_blt = sunxi_g2d_blt;
+    ctx->blt2d.fill = sunxi_g2d_fill;
 
     return ctx;
 }
@@ -534,6 +535,85 @@ int sunxi_g2d_fill_r5g6b5_in_three(sunxi_disp_t *disp,
             return - 1;
     }
     return 0;
+}
+
+/*
+ * G2D counterpart for pixman_fill (function arguments are the same with
+ * only sunxi_disp_t extra argument added). Supports 16bpp (r5g6b5) and
+ * 32bpp (a8r8g8b8) formats.
+ *
+ * Can do G2D accelerated fills only if both source and destination
+ * buffers are inside framebuffer. Returns FALSE (0) otherwise.
+ */
+
+int sunxi_g2d_fill(void               *self,
+                   uint32_t           *bits,
+                   int                 stride,
+                   int                 bpp,
+                   int                 x,
+                   int                 y,
+                   int                 w,
+                   int                 h,
+                   uint32_t            color)
+{
+    sunxi_disp_t *disp = (sunxi_disp_t *)self;
+    int blt_size_threshold;
+    g2d_fillrect tmp;
+    /*
+     * Very minimal validation here. We just assume that if the begginging
+     * of the destination images belongs to the framebuffer,
+     * then the images is entirely residing inside the framebuffer.
+     */
+    if ((uint8_t *)bits < disp->framebuffer_addr ||
+        (uint8_t *)bits >= disp->framebuffer_addr + disp->framebuffer_size)
+    {
+        return 0;
+    }
+
+    if (w <= 0 || h <= 0)
+        return 1;
+
+    /*
+     * If the area is smaller than G2D_FILL_SIZE_THRESHOLD, prefer to avoid the
+     * overhead of G2D and do a CPU fill instead. There are seperate thresholds
+     * for 16 and 32bpp.
+     */
+    if (bpp == 16)
+        blt_size_threshold = G2D_FILL_SIZE_THRESHOLD_16BPP;
+    else
+        blt_size_threshold = G2D_FILL_SIZE_THRESHOLD_32BPP;
+    if (w * h < blt_size_threshold)
+        return 0;
+
+    if (disp->fd_g2d < 0)
+        return 0;
+
+    tmp.flag                = G2D_FIL_NONE;
+    tmp.dst_image.addr[0]   = disp->framebuffer_paddr +
+                              ((uint8_t *)bits - disp->framebuffer_addr);
+    if (bpp == 32) {
+        tmp.dst_image.w         = stride;
+        tmp.dst_image.format    = G2D_FMT_ARGB_AYUV8888;
+        tmp.dst_image.pixel_seq = G2D_SEQ_NORMAL;
+        tmp.color               = color;
+    }
+    else if (bpp == 16) {
+        tmp.dst_image.w         = stride * 2;
+        tmp.dst_image.format    = G2D_FMT_RGB565;
+        tmp.dst_image.pixel_seq = G2D_SEQ_P10;
+        /* We have to convert the color to RGB888 format. */
+        tmp.color               = ((color & 0x001F) << 3) | ((color & 0x07E0) << 5) |
+                                  ((color & 0xF800) << 8);
+    }
+    tmp.dst_image.h         = y + h;
+    tmp.dst_rect.x          = x;
+    tmp.dst_rect.y          = y;
+
+    tmp.dst_rect.w          = w;
+    tmp.dst_rect.h          = h;
+    tmp.alpha               = 0;
+
+    return ioctl(disp->fd_g2d, G2D_CMD_FILLRECT, &tmp) == 0;
 }
 
 int sunxi_g2d_blit_a8r8g8b8(sunxi_disp_t *disp,

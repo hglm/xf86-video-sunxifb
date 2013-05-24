@@ -339,6 +339,7 @@ SunxiG2D *SunxiG2D_Init(ScreenPtr pScreen, blt2d_i *blt2d)
     /* Cache the pointers from blt2d_i here */
     private->blt2d_self = blt2d->self;
     private->blt2d_overlapped_blt = blt2d->overlapped_blt;
+    private->blt2d_fill = blt2d->fill;
 
     /* Wrap the current CopyWindow function */
     private->CopyWindow = pScreen->CopyWindow;

@@ -182,6 +182,20 @@ overlapped_blt_noop(void     *self,
     return 0;
 }
 
+static int
+fill_noop(uint32_t       *bits,
+          int                 stride,
+          int                 bpp,
+          int                 x,
+          int                 y,
+          int                 width,
+          int                 height,
+          uint32_t            color)
+{
+    return 0;
+}
+
+
 cpu_backend_t *cpu_backend_init(uint8_t *uncached_buffer,
                                 size_t   uncached_buffer_size)
 {
@@ -194,6 +208,7 @@ cpu_backend_t *cpu_backend_init(uint8_t *uncached_buffer,
 
     ctx->blt2d.self = ctx;
     ctx->blt2d.overlapped_blt = overlapped_blt_noop;
+    ctx->blt2d.fill = fill_noop;
 
     ctx->cpuinfo = cpuinfo_init();
 

@@ -45,6 +45,15 @@ typedef struct {
                           int       dst_y,
                           int       w,
                           int       h);
+    int (*fill)(void               *self,
+                uint32_t           *bits,
+                int                 stride,
+                int                 bpp,
+                int                 x,
+                int                 y,
+                int                 width,
+                int                 height,
+                uint32_t            color);
 } blt2d_i;
 
 #endif

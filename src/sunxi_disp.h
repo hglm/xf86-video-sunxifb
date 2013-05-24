@@ -131,6 +131,24 @@ int sunxi_g2d_blit_a8r8g8b8(sunxi_disp_t *disp,
                             int           src_y,
                             int           w,
                             int           h);
+/*
+ * The following constants are used in sunxi_disp.c and represent
+ * the area threshold for falling back to CPU fill.
+ */
+#define G2D_FILL_SIZE_THRESHOLD_32BPP 10000
+#define G2D_FILL_SIZE_THRESHOLD_16BPP 50000
+
+/* G2D counterpart for pixmanfill with the support for 16bpp and 32bpp */
+int sunxi_g2d_fill(void               *disp,
+                   uint32_t           *bits,
+                   int                 stride,
+                   int                 bpp,
+                   int                 x,
+                   int                 y,
+                   int                 width,
+                   int                 height,
+                   uint32_t            color);
+
 
 /*
  * The following constants are used sunxi_disp.c and represent
