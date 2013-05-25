@@ -538,6 +538,75 @@ int sunxi_g2d_fill_r5g6b5_in_three(sunxi_disp_t *disp,
 }
 
 /*
+ * The following function implements a 16bpp fill using 32bpp mode by
+ * splitting the area into an aligned middle part (which is filled using
+ * 32bpp mode) and left and right edges if required.
+ *
+ * It assumes the parameters have already been validated by the caller.
+ */
+
+int sunxi_g2d_fill_in_three(void      *self,
+                   uint32_t           *bits,
+                   int                 stride,
+                   int                 x,
+                   int                 y,
+                   int                 w,
+                   int                 h,
+                   uint32_t            color)
+{
+    sunxi_disp_t *disp = (sunxi_disp_t *)self;
+    g2d_fillrect tmp;
+    uint32_t color_rgb888;
+ 
+   /* Set up invariant fill parameters. */
+    tmp.flag                = G2D_FIL_NONE;
+    tmp.dst_image.addr[0]   = disp->framebuffer_paddr +
+                              ((uint8_t *)bits - disp->framebuffer_addr);
+    tmp.dst_rect.y          = y;
+    tmp.dst_image.h         = y + h;
+    tmp.dst_rect.h          = h;
+    tmp.alpha               = 0;
+
+    color_rgb888 = ((color & 0x001F) << 3) | ((color & 0x07E0) << 5) |
+                   ((color & 0xF800) << 8);
+    if (x & 1) {
+        tmp.dst_image.w         = stride * 2;
+        tmp.dst_image.format    = G2D_FMT_RGB565;
+        tmp.dst_image.pixel_seq = G2D_SEQ_P10;
+        tmp.dst_rect.x          = x;
+        tmp.dst_rect.w          = 1;
+        tmp.color               = color_rgb888;
+        if (ioctl(disp->fd_g2d, G2D_CMD_FILLRECT, &tmp))
+            return 0;
+        x++;
+        w--;
+    }
+    if (w >= 2) {
+        tmp.dst_image.w         = stride;
+        tmp.dst_image.format    = G2D_FMT_ARGB_AYUV8888;
+        tmp.dst_image.pixel_seq = G2D_SEQ_NORMAL;
+        tmp.dst_rect.x          = x >> 1;
+        tmp.dst_rect.w          = w >> 1;
+        tmp.color               = color | (color << 16);
+        if (ioctl(disp->fd_g2d, G2D_CMD_FILLRECT, &tmp))
+            return 0;
+        x += (w >> 1) * 2;
+        w &= 1;
+    }
+    if (w) {
+        tmp.dst_image.w         = stride * 2;
+        tmp.dst_image.format    = G2D_FMT_RGB565;
+        tmp.dst_image.pixel_seq = G2D_SEQ_P10;
+        tmp.dst_rect.x          = x;
+        tmp.dst_rect.w          = 1;
+        tmp.color               = color_rgb888;
+        if (ioctl(disp->fd_g2d, G2D_CMD_FILLRECT, &tmp))
+            return 0;
+    } 
+    return 1;
+}
+
+/*
  * G2D counterpart for pixman_fill (function arguments are the same with
  * only sunxi_disp_t extra argument added). Supports 16bpp (r5g6b5) and
  * 32bpp (a8r8g8b8) formats.
@@ -587,6 +656,10 @@ int sunxi_g2d_fill(void               *self,
 
     if (disp->fd_g2d < 0)
         return 0;
+
+    /* For 16bpp, use the optimized function that uses 32-bit mode. */
+    if (bpp == 16)
+        return sunxi_g2d_fill_in_three(self, bits, stride, x, y, w, h, color);
 
     tmp.flag                = G2D_FIL_NONE;
     tmp.dst_image.addr[0]   = disp->framebuffer_paddr +
