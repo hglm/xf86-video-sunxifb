@@ -27,6 +27,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>     // For debugging.
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
@@ -628,19 +629,28 @@ int sunxi_g2d_fill(void               *self,
     sunxi_disp_t *disp = (sunxi_disp_t *)self;
     int blt_size_threshold;
     g2d_fillrect tmp;
+    uint8_t *end_bits;
+
+    if (w <= 0 || h <= 0)
+        return 1;
+
     /*
-     * Very minimal validation here. We just assume that if the begginging
-     * of the destination images belongs to the framebuffer,
-     * then the images is entirely residing inside the framebuffer.
+     * Very minimal validation here. We just assume that if the beginning
+     * of the destination image belongs to the framebuffer,
+     * then the image is entirely residing inside the framebuffer.
      */
     if ((uint8_t *)bits < disp->framebuffer_addr ||
         (uint8_t *)bits >= disp->framebuffer_addr + disp->framebuffer_size)
     {
         return 0;
     }
-
-    if (w <= 0 || h <= 0)
-        return 1;
+    end_bits = (uint8_t *)bits + (y + h) * stride * 4 + (x + w) * (bpp / 8);
+    if (end_bits <= disp->framebuffer_addr ||
+    end_bits > disp->framebuffer_addr + disp->framebuffer_size) {
+        fprintf(stderr, "sunxifb: WARNING: sunxi_g2d_fill called with out of "
+            "bounds parameters.\n");
+        return 0;
+    }
 
     /*
      * If the area is smaller than G2D_FILL_SIZE_THRESHOLD, prefer to avoid the
