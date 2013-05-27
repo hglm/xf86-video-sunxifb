@@ -612,8 +612,8 @@ int sunxi_g2d_fill_in_three(void      *self,
  * only sunxi_disp_t extra argument added). Supports 16bpp (r5g6b5) and
  * 32bpp (a8r8g8b8) formats.
  *
- * Can do G2D accelerated fills only if both source and destination
- * buffers are inside framebuffer. Returns FALSE (0) otherwise.
+ * Can do G2D accelerated fills only if the destination buffer is 
+ * inside framebuffer. Returns FALSE (0) otherwise.
  */
 
 int sunxi_g2d_fill(void               *self,
@@ -642,13 +642,6 @@ int sunxi_g2d_fill(void               *self,
     if ((uint8_t *)bits < disp->framebuffer_addr ||
         (uint8_t *)bits >= disp->framebuffer_addr + disp->framebuffer_size)
     {
-        return 0;
-    }
-    end_bits = (uint8_t *)bits + (y + h) * stride * 4 + (x + w) * (bpp / 8);
-    if (end_bits <= disp->framebuffer_addr ||
-    end_bits > disp->framebuffer_addr + disp->framebuffer_size) {
-        fprintf(stderr, "sunxifb: WARNING: sunxi_g2d_fill called with out of "
-            "bounds parameters.\n");
         return 0;
     }
 
