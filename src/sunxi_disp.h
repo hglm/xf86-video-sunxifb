@@ -135,8 +135,8 @@ int sunxi_g2d_blit_a8r8g8b8(sunxi_disp_t *disp,
  * The following constants are used in sunxi_disp.c and represent
  * the area threshold for falling back to CPU fill.
  */
-#define G2D_FILL_SIZE_THRESHOLD_32BPP 10000
-#define G2D_FILL_SIZE_THRESHOLD_16BPP 50000
+#define G2D_FILL_SIZE_THRESHOLD_32BPP 5000
+#define G2D_FILL_SIZE_THRESHOLD_16BPP 10000000
 
 /* G2D counterpart for pixmanfill with the support for 16bpp and 32bpp */
 int sunxi_g2d_fill(void               *disp,
@@ -156,8 +156,8 @@ int sunxi_g2d_fill(void               *disp,
  * return 0, indicating that a software blit is preferred. The
  * 16BPP constant applies to 16bpp to 16bpp blit.
  */
-#define G2D_BLT_SIZE_THRESHOLD 200
-#define G2D_BLT_SIZE_THRESHOLD_16BPP 1000
+#define G2D_BLT_SIZE_THRESHOLD 1000
+#define G2D_BLT_SIZE_THRESHOLD_16BPP 2500
 
 /* G2D counterpart for pixman_blt with the support for 16bpp and 32bpp */
 int sunxi_g2d_blt(void               *disp,
