@@ -183,7 +183,8 @@ overlapped_blt_noop(void     *self,
 }
 
 static int
-fill_noop(uint32_t       *bits,
+fill_noop(void                *self,
+          uint32_t            *bits,
           int                 stride,
           int                 bpp,
           int                 x,
