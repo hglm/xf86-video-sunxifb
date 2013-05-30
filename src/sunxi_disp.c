@@ -35,6 +35,16 @@
 #include "sunxi_disp_ioctl.h"
 #include "g2d_driver.h"
 
+#define EXIT_XSERVER_ON_G2D_WARNING
+
+#ifdef EXIT_XSERVER_ON_G2D_WARNING
+#define ACT_ON_WARNING() \
+    exit(1);
+#else
+#define ACT_ON_WARNING() \
+    return 0;
+#endif
+
 /*****************************************************************************/
 
 sunxi_disp_t *sunxi_disp_init(const char *device, void *xserver_fbmem)
@@ -646,6 +656,27 @@ int sunxi_g2d_fill(void               *self,
     }
 
     /*
+     * For debugging purposes, check that x and y and not negative.
+     */
+    if (x < 0 || y < 0) {
+        fprintf(stderr, "sunxifb: WARNING: sunxi_g2d_fill called with negative x"
+            "or y coordinates.\n");
+        ACT_ON_WARNING();
+    }
+
+    /*
+     * For debugging purposes, do an extra bounds check to ensure that the bottom
+     * right corner of the destination rectangle is inside the framebuffer.
+     */
+    end_bits = (uint8_t *)bits + (y + h) * stride * 4 + (x + w) * (bpp / 8);
+    if (end_bits <= disp->framebuffer_addr ||
+    end_bits > disp->framebuffer_addr + disp->framebuffer_size) {
+        fprintf(stderr, "sunxifb: WARNING: sunxi_g2d_fill called with out of "
+            "bounds parameters.\n");
+        ACT_ON_WARNING();
+    }
+
+    /*
      * If the area is smaller than G2D_FILL_SIZE_THRESHOLD, prefer to avoid the
      * overhead of G2D and do a CPU fill instead. There are seperate thresholds
      * for 16 and 32bpp.
@@ -844,6 +875,7 @@ int sunxi_g2d_blt(void               *self,
     sunxi_disp_t *disp = (sunxi_disp_t *)self;
     int blt_size_threshold;
     g2d_blt tmp;
+    uint8_t *end_bits;
     /*
      * Very minimal validation here. We just assume that if the begginging
      * of both source and destination images belongs to the framebuffer,
@@ -861,6 +893,35 @@ int sunxi_g2d_blt(void               *self,
 
     if (w <= 0 || h <= 0)
         return 1;
+
+    /*
+     * For debugging purposes, check that src_x and src_y, and dst_x and dst_y are
+     * not negative.
+     */
+    if (src_x < 0 || src_y < 0 || dst_x < 0 || dst_y < 0) {
+        fprintf(stderr, "sunxifb: WARNING: sunxi_g2d_blt called with negative x"
+            "or y coordinates.\n");
+        ACT_ON_WARNING();
+    }
+
+    /*
+     * For debugging purposes, do an extra bounds check to ensure that the bottom
+     * right corner of the source and destination areas are inside the framebuffer.
+     */
+    end_bits = (uint8_t *)src_bits + (src_y + h) * src_stride * 4 + (src_x + w) * (src_bpp / 8);
+    if (end_bits <= disp->framebuffer_addr ||
+    end_bits > disp->framebuffer_addr + disp->framebuffer_size) {
+        fprintf(stderr, "sunxifb: WARNING: sunxi_g2d_blit called with out of "
+            "bounds parameters.\n");
+        ACT_ON_WARNING();
+    }
+    end_bits = (uint8_t *)dst_bits + (dst_y + h) * dst_stride * 4 + (dst_x + w) * (dst_bpp / 8);
+    if (end_bits <= disp->framebuffer_addr ||
+    end_bits > disp->framebuffer_addr + disp->framebuffer_size) {
+        fprintf(stderr, "sunxifb: WARNING: sunxi_g2d_blit called with out of "
+            "bounds parameters.\n");
+        ACT_ON_WARNING();
+    }
 
     /*
      * If the area is smaller than G2D_BLT_SIZE_THRESHOLD, prefer to avoid the
