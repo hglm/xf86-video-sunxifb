@@ -885,10 +885,17 @@ FBDevScreenInit(SCREEN_INIT_ARGS_DECL)
 	if ((accelmethod = xf86GetOptValString(fPtr->Options, OPTION_ACCELMETHOD)) &&
 						strcasecmp(accelmethod, "g2d") == 0) {
 		sunxi_disp_t *disp = fPtr->sunxi_disp_private;
+                blt2d_i *cpu_backend_blt2d;
+                if (cpu_backend->cpuinfo->has_arm_neon)
+                    cpu_backend_blt2d = &cpu_backend->blt2d;
+                else
+                    cpu_backend_blt2d = NULL;
 		if (disp && disp->fd_g2d >= 0 &&
-		    (fPtr->SunxiG2D_private = SunxiG2D_Init(pScreen, &disp->blt2d))) {
-
+		    (fPtr->SunxiG2D_private = SunxiG2D_Init(pScreen, &disp->blt2d,
+                    cpu_backend_blt2d))) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "enabled G2D acceleration\n");
+                        if (cpu_backend_blt2d != NULL)
+                            xf86DrvMsg(pScrn->scrnIndex, X_INFO, "enabled NEON optimizations\n");
 		}
 		else {
 			xf86DrvMsg(pScreen->myNum, X_INFO,
@@ -903,7 +910,8 @@ FBDevScreenInit(SCREEN_INIT_ARGS_DECL)
 	}
 
 	if (!fPtr->SunxiG2D_private && cpu_backend->cpuinfo->has_arm_neon) {
-		if ((fPtr->SunxiG2D_private = SunxiG2D_Init(pScreen, &cpu_backend->blt2d))) {
+		if ((fPtr->SunxiG2D_private = SunxiG2D_Init(pScreen, &cpu_backend->blt2d,
+                NULL))) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "enabled NEON optimizations\n");
 		}
 	}

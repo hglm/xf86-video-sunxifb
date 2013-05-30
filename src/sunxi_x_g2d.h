@@ -56,9 +56,10 @@ typedef struct {
                 int       width,
                 int       height,
                 uint32_t  color);
+    blt2d_i *blt2d_cpu_backend;
 } SunxiG2D;
 
-SunxiG2D *SunxiG2D_Init(ScreenPtr pScreen, blt2d_i *blt2d);
+SunxiG2D *SunxiG2D_Init(ScreenPtr pScreen, blt2d_i *blt2d, blt2d_i *blt2d_cpu_backend);
 void SunxiG2D_Close(ScreenPtr pScreen);
 
 #endif

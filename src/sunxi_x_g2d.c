@@ -150,9 +150,31 @@ xCopyNtoN(DrawablePtr pSrcDrawable,
     fbGetDrawable(pDstDrawable, dst, dstStride, dstBpp, dstXoff, dstYoff);
 
     while (nbox--) {
-        /* first try G2D */
+        /*
+         * The following scenarios exist regarding accelerated blits:
+         * 1. Use G2D and the NEON CPU back-end as fall back.
+         *    private->blt2d_overlapped_blt is the G2D blit function.
+         *    private->btl2d_cpu_back_end is initialized with the CPU back-end.
+         * 2. Use G2D and not use the NEON CPU back-end as fall back.
+         *    private->blt2d_overlapped_blt is the G2D blit function.
+         *    private->blt2d_cpu_back_end is NULL.
+         * 3. Use the NEON CPU back-end only.
+         *    private->blt2d_overlapped_blt is the NEON CPU back-end blit function.
+         *    private->blt2d_cpu_back_end is NULL.
+         */
         Bool done = private->blt2d_overlapped_blt(
                              private->blt2d_self,
+                             (uint32_t *)src, (uint32_t *)dst,
+                             srcStride, dstStride,
+                             srcBpp, dstBpp, (pbox->x1 + dx + srcXoff),
+                             (pbox->y1 + dy + srcYoff), (pbox->x1 + dstXoff),
+                             (pbox->y1 + dstYoff), (pbox->x2 - pbox->x1),
+                             (pbox->y2 - pbox->y1));
+
+        /* When using G2D, try the NEON CPU back end as fallback. */
+        if (!done && private->blt2d_cpu_backend != NULL)
+            done = private->blt2d_cpu_backend->overlapped_blt(
+                             private->blt2d_cpu_backend->self,
                              (uint32_t *)src, (uint32_t *)dst,
                              srcStride, dstStride,
                              srcBpp, dstBpp, (pbox->x1 + dx + srcXoff),
@@ -455,7 +477,7 @@ xCreateGC(GCPtr pGC)
 
 /*****************************************************************************/
 
-SunxiG2D *SunxiG2D_Init(ScreenPtr pScreen, blt2d_i *blt2d)
+SunxiG2D *SunxiG2D_Init(ScreenPtr pScreen, blt2d_i *blt2d, blt2d_i *blt2d_cpu_backend)
 {
     SunxiG2D *private = calloc(1, sizeof(SunxiG2D));
     if (!private) {
@@ -466,6 +488,7 @@ SunxiG2D *SunxiG2D_Init(ScreenPtr pScreen, blt2d_i *blt2d)
 
     /* Cache the pointers from blt2d_i here */
     private->blt2d_self = blt2d->self;
+    private->blt2d_cpu_backend = blt2d_cpu_backend;
     private->blt2d_overlapped_blt = blt2d->overlapped_blt;
     private->blt2d_fill = blt2d->fill;
 
