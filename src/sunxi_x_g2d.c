@@ -68,13 +68,27 @@ xCopyWindowProc(DrawablePtr pSrcDrawable,
     fbGetDrawable(pDstDrawable, dst, dstStride, dstBpp, dstXoff, dstYoff);
 
     while (nbox--) {
-        if (!private->blt2d_overlapped_blt(private->blt2d_self,
+        Bool done;
+        done = private->blt2d_overlapped_blt(private->blt2d_self,
                                            (uint32_t *)src, (uint32_t *)dst,
                                            srcStride, dstStride,
                                            srcBpp, dstBpp, (pbox->x1 + dx + srcXoff),
                                            (pbox->y1 + dy + srcYoff), (pbox->x1 + dstXoff),
                                            (pbox->y1 + dstYoff), (pbox->x2 - pbox->x1),
-                                           (pbox->y2 - pbox->y1))) {
+                                           (pbox->y2 - pbox->y1));
+
+        /* When using G2D, try the NEON CPU back end as fallback. */
+        if (!done && private->blt2d_cpu_backend != NULL)
+            done = private->blt2d_cpu_backend->overlapped_blt(
+                             private->blt2d_cpu_backend->self,
+                             (uint32_t *)src, (uint32_t *)dst,
+                             srcStride, dstStride,
+                             srcBpp, dstBpp, (pbox->x1 + dx + srcXoff),
+                             (pbox->y1 + dy + srcYoff), (pbox->x1 + dstXoff),
+                             (pbox->y1 + dstYoff), (pbox->x2 - pbox->x1),
+                             (pbox->y2 - pbox->y1));
+
+        if (!done) {
             /* fallback to fbBlt */
             fbBlt(src + (pbox->y1 + dy + srcYoff) * srcStride,
                   srcStride,
