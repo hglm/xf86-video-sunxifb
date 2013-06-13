@@ -75,8 +75,16 @@ xCopyWindowProc(DrawablePtr pSrcDrawable,
                                            (pbox->y1 + dy + srcYoff), (pbox->x1 + dstXoff),
                                            (pbox->y1 + dstYoff), (pbox->x2 - pbox->x1),
                                            (pbox->y2 - pbox->y1))) {
+            Bool done = FALSE;
+            if (!reverse && !upsidedown)
+                 done = pixman_blt((uint32_t *)src, (uint32_t *)dst, srcStride, dstStride,
+                     srcBpp, dstBpp, (pbox->x1 + dx + srcXoff),
+                     (pbox->y1 + dy + srcYoff), (pbox->x1 + dstXoff),
+                     (pbox->y1 + dstYoff), (pbox->x2 - pbox->x1),
+                     (pbox->y2 - pbox->y1));
             /* fallback to fbBlt */
-            fbBlt(src + (pbox->y1 + dy + srcYoff) * srcStride,
+            if (!done)
+                fbBlt(src + (pbox->y1 + dy + srcYoff) * srcStride,
                   srcStride,
                   (pbox->x1 + dx + srcXoff) * srcBpp,
                   dst + (pbox->y1 + dstYoff) * dstStride,
